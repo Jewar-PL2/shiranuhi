@@ -1,0 +1,11 @@
+[package]
+name = "shiranuhi"
+authors = ["Jewar-PL"]
+description = "Another attempt at creating an experimental Playstation emulator"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bitfield-struct = "0.10.1"
+spdlog-rs = "0.4.1"
+
