@@ -27,6 +27,9 @@ impl Cpu {
         }
     }
 
+    // NOTE: delay slots mechanics are temporarily copied from https://github.com/JaCzekanski/Avocado
+    // It will be replaced in the future, perhaps I don't even need two slots
+
     fn set_reg(&mut self, register: usize, value: u32) {
         if register == 0 {
             return;
