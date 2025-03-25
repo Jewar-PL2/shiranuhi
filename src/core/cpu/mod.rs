@@ -1,4 +1,7 @@
 mod cop0;
+mod instr;
+
+use instr::{Instruction, CPU_INSTRUCTIONS};
 
 #[derive(Clone, Copy)]
 struct DelaySlot {
@@ -10,6 +13,8 @@ pub struct Cpu {
     regs: [u32; 32],
     program_counter: u32,
     program_counter_predictor: u32,
+
+    instruction: Instruction,
 
     delay_slots: [Option<DelaySlot>; 2]
 }
@@ -23,6 +28,7 @@ impl Cpu {
             regs,
             program_counter: 0xBFC00000,
             program_counter_predictor: 0xBFC00004,
+            instruction: Instruction(0),
             delay_slots: [None; 2]
         }
     }
@@ -63,5 +69,19 @@ impl Cpu {
         }
 
         self.delay_slots[0] = self.delay_slots[1].take();
+    }
+
+    // TODO: Return ticks
+    pub fn clock(&mut self) {
+        self.fetch_instruction(self.program_counter);
+
+        self.program_counter = self.program_counter_predictor;
+        self.program_counter_predictor = self.program_counter.wrapping_add(4);
+
+        CPU_INSTRUCTIONS[self.instruction.opcode()](self);
+    }
+
+    fn fetch_instruction(&mut self, address: u32) {
+        todo!()
     }
 }

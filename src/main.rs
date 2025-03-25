@@ -69,12 +69,13 @@ use spdlog::prelude::*;
 //     cop3_enable: bool
 // }
 
+use shiranuhi::core::cpu::Cpu;
+
 fn main() {
     info!("spdlog works fine");
 
-    // let mut status = StatusRegister::new();
-    // status.set_isolate_cache(true);
-    // let raw_status: u32 = status.into();
-
-    // info!("Status register: 0x{raw_status:08X}");
+    let mut cpu = Cpu::new();
+    loop {
+        cpu.clock();
+    }
 }
