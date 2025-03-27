@@ -3,6 +3,8 @@ mod instr;
 
 use instr::{Instruction, CPU_INSTRUCTIONS};
 
+use super::bus::Bus;
+
 #[derive(Clone, Copy)]
 struct DelaySlot {
     register: usize,
@@ -16,11 +18,13 @@ pub struct Cpu {
 
     instruction: Instruction,
 
-    delay_slots: [Option<DelaySlot>; 2]
+    delay_slots: [Option<DelaySlot>; 2],
+
+    bus: Bus
 }
 
 impl Cpu {
-    pub fn new() -> Self {
+    pub fn new(bus: Bus) -> Self {
         let mut regs = [0xDEADBEEF; 32];
         regs[0] = 0;
         
@@ -29,7 +33,8 @@ impl Cpu {
             program_counter: 0xBFC00000,
             program_counter_predictor: 0xBFC00004,
             instruction: Instruction(0),
-            delay_slots: [None; 2]
+            delay_slots: [None; 2],
+            bus
         }
     }
 
@@ -82,6 +87,8 @@ impl Cpu {
     }
 
     fn fetch_instruction(&mut self, address: u32) {
-        todo!()
+        // TODO: Handle iCache
+        let fetch = self.bus.load32(address);
+        self.instruction = Instruction(fetch);
     }
 }
