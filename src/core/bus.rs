@@ -1,29 +1,55 @@
-use super::bios::Bios;
+use super::{
+    bios::Bios,
+    devices::ram::Ram
+};
 use spdlog::prelude::*;
 
+const RAM_RANGE: Range = Range(0x00000000, 2 * 1024 * 1024);
 const BIOS_RANGE: Range = Range(0x1FC00000, 512 * 1024);
+const CACHE_CONTROL_RANGE: Range = Range(0xFFFE0130, 4);
 
 pub struct Bus {
-    bios: Bios
+    bios: Bios,
+    ram: Ram,
+    cache_control: CacheControl
 }
 
 impl Bus {
     pub fn new(bios: Bios) -> Self {
-        Self { bios }
+        Self { bios, ram: Ram::new(), cache_control: CacheControl(0) }
     }
 
     pub fn load32(&self, address: u32) -> u32 {        
         let address = get_masked_address(address);
         
+        if let Some(offset) = RAM_RANGE.contains(address) {
+            return self.ram.load32(offset);
+        }
+
         if let Some(offset) = BIOS_RANGE.contains(address) {
             return self.bios.load32(offset);
+        }
+
+        if CACHE_CONTROL_RANGE.contains(address).is_some() {
+            return self.cache_control.0;
         }
 
         panic!("INVALID ADDRESS: 0x{:08X}", address);
     }
 
-    pub fn store32(&self, address: u32, value: u32) {
+    pub fn store32(&mut self, address: u32, value: u32) {
         let address = get_masked_address(address);
+
+        if let Some(offset) = RAM_RANGE.contains(address) {
+            self.ram.store32(offset, value);
+            return;
+        }
+
+        if CACHE_CONTROL_RANGE.contains(address).is_some() {
+            self.cache_control.0 = value;
+            return;
+        }
+
         warn!("Unhandled store32 at [0x{:08X}]: 0x{:08X}", address, value)
     }
 }
@@ -38,6 +64,17 @@ impl Range {
         } else {
             None
         }
+    }
+}
+
+struct CacheControl(u32);
+impl CacheControl {
+    pub fn icache_enabled(&self) -> bool {
+        self.0 & 0x800 != 0
+    }
+
+    pub fn tag_test_mode(&self) -> bool {
+        self.0 & 0x4 != 0
     }
 }
 

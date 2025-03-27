@@ -1,16 +1,13 @@
 use std::{fs::File, io::Read, path::Path};
 
-pub const BIOS_START: u32 = 0x1FC00000;
-pub const BIOS_SIZE: u32 = 512 * 1024;
-
 pub struct Bios {
-    data: Box<[u8; BIOS_SIZE as usize]>
+    data: Box<[u8; 512 * 1024]>
 }
 
 impl Bios {
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, std::io::Error> {
         let mut file = File::open(path)?;
-        let mut buffer = vec![0x00; BIOS_SIZE as usize];
+        let mut buffer = vec![0x00; 512 * 1024];
 
         file.read_exact(&mut buffer)?;
 
