@@ -51,25 +51,42 @@ pub static CPU_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
     |cpu, instr| { unimplemented!("BCONDZ") },
     |cpu, instr| { 
         // TODO: Set flags
-        
+
         let jump_address = (cpu.program_counter & 0xF0000000) | (instr.target() * 4);
-        trace!("CPU: Performing jump to address: 0x{:08X}", jump_address);
+        info!("CPU: Performing jump to address: 0x{:08X}", jump_address);
         cpu.program_counter_predictor = jump_address;
     },
     |cpu, instr| { unimplemented!("JAL") },
     |cpu, instr| { unimplemented!("BEQ") },
-    |cpu, instr| { unimplemented!("BNE") },
+    |cpu, instr| { 
+        if cpu.regs[instr.rs()] != cpu.regs[instr.rt()] {
+            branch(cpu, instr);
+        }
+    },
     |cpu, instr| { unimplemented!("BLEZ") },
     |cpu, instr| { unimplemented!("BGTZ") },
-    |cpu, instr| { unimplemented!("ADDI") },
-    |cpu, instr| { cpu.set_reg(instr.rt(), cpu.regs[instr.rs()] + instr.imm_signed()); },
+    |cpu, instr| { 
+        let rs = cpu.regs[instr.rs()];
+        match rs.checked_add(instr.imm_signed()) {
+            Some(value) => cpu.set_reg(instr.rt(), value),
+            None => todo!("Exception")
+        }
+    },
+    |cpu, instr| { cpu.set_reg(instr.rt(), cpu.regs[instr.rs()].wrapping_add(instr.imm_signed())); },
     |cpu, instr| { unimplemented!("SLTI") },
     |cpu, instr| { unimplemented!("SLTIU") },
     |cpu, instr| { unimplemented!("ANDI") },
     |cpu, instr| { cpu.set_reg(instr.rt(), cpu.regs[instr.rs()] | instr.imm_zero()); },
     |cpu, instr| { unimplemented!("XORI") },
     |cpu, instr| { cpu.set_reg(instr.rt(), instr.imm_zero() << 16); },
-    |cpu, instr| { unimplemented!("COP0") },
+    |cpu, instr| { 
+        match instr.rs() {
+            0 => unimplemented!("MFC0"),
+            4 => cpu.cop0.store(instr.rd(), cpu.regs[instr.rt()]),
+            16 => unimplemented!("RFE"),
+            _ => unreachable!()
+        }
+    },
     |cpu, instr| { unimplemented!("COP1") },
     |cpu, instr| { unimplemented!("COP2") },
     |cpu, instr| { unimplemented!("COP3") },
@@ -88,7 +105,13 @@ pub static CPU_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
     |cpu, instr| { unimplemented!("LB") },
     |cpu, instr| { unimplemented!("LH") },
     |cpu, instr| { unimplemented!("LWL") },
-    |cpu, instr| { unimplemented!("LW") },
+    |cpu, instr| { 
+        let address = cpu.regs[instr.rs()] + instr.imm_signed();
+        // TODO: Handle misalignments
+        let value = cpu.load32(address);
+
+        cpu.load_delay_slot(instr.rt(), value);
+    },
     |cpu, instr| { unimplemented!("LBU") },
     |cpu, instr| { unimplemented!("LHU") },
     |cpu, instr| { unimplemented!("LWR") },
@@ -167,7 +190,7 @@ static CPU_SPECIAL_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
     |cpu, instr| { unimplemented!("SUB") },
     |cpu, instr| { unimplemented!("SUBU") },
     |cpu, instr| { unimplemented!("AND") },
-    |cpu, instr| { unimplemented!("OR") },
+    |cpu, instr| { cpu.set_reg(instr.rd(), cpu.regs[instr.rs()] | cpu.regs[instr.rt()]); },
     |cpu, instr| { unimplemented!("XOR") },
     |cpu, instr| { unimplemented!("NOR") },
     op_illegal,
@@ -199,4 +222,11 @@ static CPU_SPECIAL_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
 fn op_illegal(cpu: &mut Cpu, instr: Instruction) {
     critical!("Illegal instruction: 0x{:08X}", instr.0);
     std::process::exit(1);
+}
+
+fn branch(cpu: &mut Cpu, instr: Instruction) {
+    // TODO: Verify if its correct
+    let branch_address = cpu.program_counter.wrapping_add(instr.imm_signed() << 2);
+    info!("CPU: Performing branch to address: 0x{:08X}", branch_address);
+    cpu.program_counter_predictor = branch_address;
 }

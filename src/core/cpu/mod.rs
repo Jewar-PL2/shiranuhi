@@ -1,6 +1,7 @@
 mod cop0;
 mod instr;
 
+use cop0::Cop0;
 use instr::{Instruction, CPU_INSTRUCTIONS};
 
 use super::bus::Bus;
@@ -20,6 +21,7 @@ pub struct Cpu {
 
     delay_slots: [Option<DelaySlot>; 2],
 
+    cop0: Cop0,
     bus: Bus
 }
 
@@ -33,6 +35,7 @@ impl Cpu {
             program_counter: 0xBFC00000,
             program_counter_predictor: 0xBFC00004,
             delay_slots: [None; 2],
+            cop0: Cop0::new(),
             bus
         }
     }
@@ -83,6 +86,7 @@ impl Cpu {
         self.program_counter_predictor = self.program_counter.wrapping_add(4);
 
         CPU_INSTRUCTIONS[instr.opcode()](self, instr);
+        self.move_delay_slots();
     }
 
     fn fetch_instruction(&mut self, address: u32) -> Instruction {
@@ -95,7 +99,11 @@ impl Cpu {
     }
 
     fn store32(&mut self, address: u32, value: u32) {
-        // TODO: Handle cache isolation
+        if self.cop0.is_cache_isolated() {
+            trace!("Cache is isolated, ignoring store32 for now");
+            // TODO: Maintain iCache
+            return;
+        }
         self.bus.store32(address, value);
     }
 }
