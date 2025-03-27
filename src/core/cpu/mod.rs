@@ -16,8 +16,6 @@ pub struct Cpu {
     program_counter: u32,
     program_counter_predictor: u32,
 
-    instruction: Instruction,
-
     delay_slots: [Option<DelaySlot>; 2],
 
     bus: Bus
@@ -32,7 +30,6 @@ impl Cpu {
             regs,
             program_counter: 0xBFC00000,
             program_counter_predictor: 0xBFC00004,
-            instruction: Instruction(0),
             delay_slots: [None; 2],
             bus
         }
@@ -78,17 +75,16 @@ impl Cpu {
 
     // TODO: Return ticks
     pub fn clock(&mut self) {
-        self.fetch_instruction(self.program_counter);
+        let instr = self.fetch_instruction(self.program_counter);
 
         self.program_counter = self.program_counter_predictor;
         self.program_counter_predictor = self.program_counter.wrapping_add(4);
 
-        CPU_INSTRUCTIONS[self.instruction.opcode()](self);
+        CPU_INSTRUCTIONS[instr.opcode()](self, instr);
     }
 
-    fn fetch_instruction(&mut self, address: u32) {
+    fn fetch_instruction(&mut self, address: u32) -> Instruction {
         // TODO: Handle iCache
-        let fetch = self.bus.load32(address);
-        self.instruction = Instruction(fetch);
+        Instruction(self.bus.load32(address))
     }
 }
