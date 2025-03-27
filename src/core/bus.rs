@@ -1,4 +1,5 @@
 use super::bios::Bios;
+use spdlog::prelude::*;
 
 const BIOS_RANGE: Range = Range(0x1FC00000, 512 * 1024);
 
@@ -19,6 +20,11 @@ impl Bus {
         }
 
         panic!("INVALID ADDRESS: 0x{:08X}", address);
+    }
+
+    pub fn store32(&self, address: u32, value: u32) {
+        let address = get_masked_address(address);
+        warn!("Unhandled store32 at [0x{:08X}]: 0x{:08X}", address, value)
     }
 }
 

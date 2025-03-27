@@ -5,6 +5,8 @@ use instr::{Instruction, CPU_INSTRUCTIONS};
 
 use super::bus::Bus;
 
+use spdlog::prelude::*;
+
 #[derive(Clone, Copy)]
 struct DelaySlot {
     register: usize,
@@ -85,6 +87,15 @@ impl Cpu {
 
     fn fetch_instruction(&mut self, address: u32) -> Instruction {
         // TODO: Handle iCache
-        Instruction(self.bus.load32(address))
+        Instruction(self.load32(address))
+    }
+
+    fn load32(&self, address: u32) -> u32 {
+        self.bus.load32(address)
+    }
+
+    fn store32(&mut self, address: u32, value: u32) {
+        // TODO: Handle cache isolation
+        self.bus.store32(address, value);
     }
 }

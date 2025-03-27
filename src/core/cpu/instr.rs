@@ -49,14 +49,20 @@ impl Instruction {
 pub static CPU_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
     |cpu, instr| { CPU_SPECIAL_INSTRUCTIONS[instr.function()](cpu, instr) },
     |cpu, instr| { unimplemented!("BCONDZ") },
-    |cpu, instr| { unimplemented!("J") },
+    |cpu, instr| { 
+        // TODO: Set flags
+        
+        let jump_address = (cpu.program_counter & 0xF0000000) | (instr.target() * 4);
+        trace!("CPU: Performing jump to address: 0x{:08X}", jump_address);
+        cpu.program_counter_predictor = jump_address;
+    },
     |cpu, instr| { unimplemented!("JAL") },
     |cpu, instr| { unimplemented!("BEQ") },
     |cpu, instr| { unimplemented!("BNE") },
     |cpu, instr| { unimplemented!("BLEZ") },
     |cpu, instr| { unimplemented!("BGTZ") },
     |cpu, instr| { unimplemented!("ADDI") },
-    |cpu, instr| { unimplemented!("ADDIU") },
+    |cpu, instr| { cpu.set_reg(instr.rt(), cpu.regs[instr.rs()] + instr.imm_signed()); },
     |cpu, instr| { unimplemented!("SLTI") },
     |cpu, instr| { unimplemented!("SLTIU") },
     |cpu, instr| { unimplemented!("ANDI") },
@@ -90,7 +96,12 @@ pub static CPU_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
     |cpu, instr| { unimplemented!("SB") },
     |cpu, instr| { unimplemented!("SH") },
     |cpu, instr| { unimplemented!("SWL") },
-    |cpu, instr| { unimplemented!("SW") },
+    |cpu, instr| { 
+        let address = cpu.regs[instr.rs()] + instr.imm_signed();
+        // TODO: Handle misalignments
+
+        cpu.store32(address, cpu.regs[instr.rt()]);
+    },
     op_illegal,
     op_illegal,
     |cpu, instr| { unimplemented!("SWR") },
@@ -114,7 +125,12 @@ pub static CPU_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
 ];
 
 static CPU_SPECIAL_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
-    |cpu, instr| { unimplemented!("SLL") },
+    |cpu, instr| {
+        if instr.0 == 0 {
+            return
+        }
+        cpu.set_reg(instr.rd(), cpu.regs[instr.rt()] << instr.shift());
+    },
     op_illegal,
     |cpu, instr| { unimplemented!("SRL") },
     |cpu, instr| { unimplemented!("SRA") },

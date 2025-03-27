@@ -2,6 +2,8 @@ use shiranuhi::core::{bios::Bios, bus::Bus, cpu::Cpu};
 use spdlog::prelude::*;
 
 fn main() {
+    spdlog::default_logger().set_level_filter(LevelFilter::All);
+
     info!("spdlog works fine");
 
     let first_lui_instruction = 0x3C080013;
