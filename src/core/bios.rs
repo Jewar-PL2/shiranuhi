@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read, path::PathBuf};
+use std::{fs::File, io::Read, path::Path};
 
 pub const BIOS_OFFSET: usize = 0x1FC00000;
 pub const BIOS_SIZE: usize = 512 * 1024;
@@ -8,7 +8,7 @@ pub struct Bios {
 }
 
 impl Bios {
-    pub fn new(path: PathBuf) -> Result<Self, std::io::Error> {
+    pub fn new<P: AsRef<Path>>(path: P) -> Result<Self, std::io::Error> {
         let mut file = File::open(path)?;
         let mut buffer = vec![0x00; BIOS_SIZE];
 

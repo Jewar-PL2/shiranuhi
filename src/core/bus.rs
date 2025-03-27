@@ -5,5 +5,7 @@ pub struct Bus {
 }
 
 impl Bus {
-    
+    pub fn new(bios: Bios) -> Self {
+        Self { bios }
+    }
 }
