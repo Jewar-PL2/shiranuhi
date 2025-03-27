@@ -10,6 +10,38 @@ impl Instruction {
     pub fn opcode(&self) -> usize {
         ((self.0 >> 26) & 0x3F) as usize
     }
+
+    pub fn rs(&self) -> usize {
+        ((self.0 >> 21) & 0x1F) as usize
+    }
+
+    pub fn rt(&self) -> usize {
+        ((self.0 >> 16) & 0x1F) as usize
+    }
+
+    pub fn rd(&self) -> usize {
+        ((self.0 >> 11) & 0x1F) as usize
+    }
+
+    pub fn shift(&self) -> usize {
+        ((self.0 >> 6) & 0x1F) as usize
+    }
+
+    pub fn function(&self) -> usize {
+        (self.0 & 0x3F) as usize
+    }
+
+    pub fn imm_zero(&self) -> u32 {
+        self.0 & 0xFFFF
+    }
+
+    pub fn imm_signed(&self) -> u32 {
+        (self.0 & 0xFFFF) as i16 as u32
+    }
+
+    pub fn target(&self) -> u32 {
+        self.0 & 0x3FFFFFF
+    }
 }
 
 // TODO: Maybe change lambdas to normal funcs
