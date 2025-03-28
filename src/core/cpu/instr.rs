@@ -186,7 +186,7 @@ static CPU_SPECIAL_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
     op_illegal,
     op_illegal,
     |cpu, instr| { unimplemented!("ADD") },
-    |cpu, instr| { unimplemented!("ADDU") },
+    |cpu, instr| { cpu.set_reg(instr.rd(), cpu.regs[instr.rs()].wrapping_add(cpu.regs[instr.rt()])); },
     |cpu, instr| { unimplemented!("SUB") },
     |cpu, instr| { unimplemented!("SUBU") },
     |cpu, instr| { unimplemented!("AND") },
@@ -196,7 +196,7 @@ static CPU_SPECIAL_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
     op_illegal,
     op_illegal,
     |cpu, instr| { unimplemented!("SLT") },
-    |cpu, instr| { unimplemented!("SLTU") },
+    |cpu, instr| { cpu.set_reg(instr.rd(), if cpu.regs[instr.rs()] < cpu.regs[instr.rt()] { 1 } else { 0 }) },
     op_illegal,
     op_illegal,
     op_illegal,
@@ -227,6 +227,6 @@ fn op_illegal(cpu: &mut Cpu, instr: Instruction) {
 fn branch(cpu: &mut Cpu, instr: Instruction) {
     // TODO: Verify if its correct
     let branch_address = cpu.program_counter.wrapping_add(instr.imm_signed() << 2);
-    info!("CPU: Performing branch to address: 0x{:08X}", branch_address);
+    trace!("CPU: Performing branch to address: 0x{:08X}", branch_address);
     cpu.program_counter_predictor = branch_address;
 }
