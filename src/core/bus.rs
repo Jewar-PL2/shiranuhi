@@ -7,6 +7,8 @@ use spdlog::prelude::*;
 const RAM_RANGE: Range = Range(0x00000000, 2 * 1024 * 1024);
 const BIOS_RANGE: Range = Range(0x1FC00000, 512 * 1024);
 const CACHE_CONTROL_RANGE: Range = Range(0xFFFE0130, 4);
+const MEMORY_CONTROL_RANGE: Range = Range(0x1F801000, 36);
+const RAM_SIZE_RANGE: Range = Range(0x1F801060, 4);
 
 pub struct Bus {
     bios: Bios,
@@ -30,7 +32,7 @@ impl Bus {
             return self.bios.load32(offset);
         }
 
-        if CACHE_CONTROL_RANGE.contains(address).is_some() {
+        if let Some(_offset) = CACHE_CONTROL_RANGE.contains(address) {
             return self.cache_control.0;
         }
 
@@ -45,7 +47,17 @@ impl Bus {
             return;
         }
 
-        if CACHE_CONTROL_RANGE.contains(address).is_some() {
+        if let Some(_offset) = MEMORY_CONTROL_RANGE.contains(address) {
+            warn!("[MEM_CONTROL] Unhandled store32 at [0x{:08X}]: 0x{:08X}", address, value);
+            return;
+        }
+
+        if let Some(_offset) = RAM_SIZE_RANGE.contains(address) {
+            warn!("[RAM_SIZE] Unhandled store32 at [0x{:08X}]: 0x{:08X}", address, value);
+            return;
+        }
+
+        if let Some(_offset) = CACHE_CONTROL_RANGE.contains(address) {
             self.cache_control.0 = value;
             return;
         }
