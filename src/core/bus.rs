@@ -5,10 +5,12 @@ use super::{
 use spdlog::prelude::*;
 
 const RAM_RANGE: Range = Range(0x00000000, 2 * 1024 * 1024);
-const BIOS_RANGE: Range = Range(0x1FC00000, 512 * 1024);
-const CACHE_CONTROL_RANGE: Range = Range(0xFFFE0130, 4);
 const MEMORY_CONTROL_RANGE: Range = Range(0x1F801000, 36);
 const RAM_SIZE_RANGE: Range = Range(0x1F801060, 4);
+const SPU_RANGE: Range = Range(0x1F801C00, 640);
+const EXPANSION_2_RANGE: Range = Range(0x1F802000, 66);
+const BIOS_RANGE: Range = Range(0x1FC00000, 512 * 1024);
+const CACHE_CONTROL_RANGE: Range = Range(0xFFFE0130, 4);
 
 pub struct Bus {
     bios: Bios,
@@ -36,7 +38,19 @@ impl Bus {
             return self.cache_control.0;
         }
 
-        panic!("INVALID ADDRESS: 0x{:08X}", address);
+        panic!("INVALID LOAD32 ADDRESS: 0x{:08X}", address);
+    }
+
+    pub fn load16(&self, address: u32) -> u16 {        
+        let address = get_masked_address(address);
+
+        panic!("INVALID LOAD16 ADDRESS: 0x{:08X}", address);
+    }
+
+    pub fn load8(&self, address: u32) -> u8 {        
+        let address = get_masked_address(address);
+
+        panic!("INVALID LOAD8 ADDRESS: 0x{:08X}", address);
     }
 
     pub fn store32(&mut self, address: u32, value: u32) {
@@ -63,6 +77,28 @@ impl Bus {
         }
 
         warn!("Unhandled store32 at [0x{:08X}]: 0x{:08X}", address, value)
+    }
+
+    pub fn store16(&mut self, address: u32, value: u16) {
+        let address = get_masked_address(address);
+
+        if let Some(_offset) = SPU_RANGE.contains(address) {
+            warn!("[SPU] Unhandled store16 at [0x{:08X}]: 0x{:04X}", address, value);
+            return;
+        }
+
+        warn!("Unhandled store16 at [0x{:08X}]: 0x{:04X}", address, value)
+    }
+
+    pub fn store8(&mut self, address: u32, value: u8) {
+        let address = get_masked_address(address);
+
+        if let Some(_offset) = EXPANSION_2_RANGE.contains(address) {
+            warn!("[EXP2] Unhandled store8 at [0x{:08X}]: 0x{:02X}", address, value);
+            return;
+        }
+
+        warn!("Unhandled store8 at [0x{:08X}]: 0x{:02X}", address, value)
     }
 }
 
