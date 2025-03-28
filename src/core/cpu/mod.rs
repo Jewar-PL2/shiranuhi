@@ -21,6 +21,13 @@ pub struct Cpu {
 
     delay_slots: [Option<DelaySlot>; 2],
 
+    branch_delay: bool,
+    branch_taken: bool,
+
+    ex_program_counter: u32,
+    ex_branch_delay: bool,
+    ex_branch_taken: bool,
+
     cop0: Cop0,
     bus: Bus
 }
@@ -34,6 +41,13 @@ impl Cpu {
             regs,
             program_counter: 0xBFC00000,
             program_counter_predictor: 0xBFC00004,
+            branch_delay: false,
+            branch_taken: false,
+
+            ex_program_counter: 0xBFC00000,
+            ex_branch_delay: false,
+            ex_branch_taken: false,
+
             delay_slots: [None; 2],
             cop0: Cop0::new(),
             bus
@@ -82,8 +96,16 @@ impl Cpu {
     pub fn clock(&mut self) {
         let instr = self.fetch_instruction(self.program_counter);
 
+        self.ex_program_counter = self.program_counter;
+
         self.program_counter = self.program_counter_predictor;
         self.program_counter_predictor = self.program_counter.wrapping_add(4);
+
+        self.ex_branch_delay = self.branch_delay;
+        self.ex_branch_taken = self.branch_taken;
+
+        self.branch_delay = false;
+        self.branch_taken = false;
 
         CPU_INSTRUCTIONS[instr.opcode()](self, instr);
         self.move_delay_slots();
@@ -98,6 +120,14 @@ impl Cpu {
         self.bus.load32(address)
     }
 
+    fn load16(&self, address: u32) -> u16 {
+        self.bus.load16(address)
+    }
+
+    fn load8(&self, address: u32) -> u8 {
+        self.bus.load8(address)
+    }
+
     fn store32(&mut self, address: u32, value: u32) {
         if self.cop0.is_cache_isolated() {
             trace!("Cache is isolated, ignoring store32 for now");
@@ -105,5 +135,23 @@ impl Cpu {
             return;
         }
         self.bus.store32(address, value);
+    }
+
+    fn store16(&mut self, address: u32, value: u16) {
+        if self.cop0.is_cache_isolated() {
+            trace!("Cache is isolated, ignoring store16 for now");
+            // TODO: Maintain iCache
+            return;
+        }
+        self.bus.store16(address, value);
+    }
+
+    fn store8(&mut self, address: u32, value: u8) {
+        if self.cop0.is_cache_isolated() {
+            trace!("Cache is isolated, ignoring store8 for now");
+            // TODO: Maintain iCache
+            return;
+        }
+        self.bus.store8(address, value);
     }
 }

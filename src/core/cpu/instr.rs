@@ -49,16 +49,16 @@ impl Instruction {
 pub static CPU_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
     |cpu, instr| { CPU_SPECIAL_INSTRUCTIONS[instr.function()](cpu, instr) },
     |cpu, instr| { unimplemented!("BCONDZ") },
-    |cpu, instr| { 
-        // TODO: Set flags
+    |cpu, instr| { jump(cpu, (cpu.program_counter & 0xF0000000) | (instr.target() << 2)); },
+    |cpu, instr| {
+        info!("[CPU] Linking return address: 0x{:08X}", cpu.program_counter_predictor);
+        cpu.set_reg(31, cpu.program_counter_predictor);
 
-        let jump_address = (cpu.program_counter & 0xF0000000) | (instr.target() * 4);
-        info!("CPU: Performing jump to address: 0x{:08X}", jump_address);
-        cpu.program_counter_predictor = jump_address;
+        jump(cpu, (cpu.program_counter & 0xF0000000) | (instr.target() << 2));
     },
-    |cpu, instr| { unimplemented!("JAL") },
     |cpu, instr| { unimplemented!("BEQ") },
     |cpu, instr| { 
+        cpu.branch_delay = true;
         if cpu.regs[instr.rs()] != cpu.regs[instr.rt()] {
             branch(cpu, instr);
         }
@@ -75,7 +75,7 @@ pub static CPU_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
     |cpu, instr| { cpu.set_reg(instr.rt(), cpu.regs[instr.rs()].wrapping_add(instr.imm_signed())); },
     |cpu, instr| { unimplemented!("SLTI") },
     |cpu, instr| { unimplemented!("SLTIU") },
-    |cpu, instr| { unimplemented!("ANDI") },
+    |cpu, instr| { cpu.set_reg(instr.rt(), cpu.regs[instr.rs()] & instr.imm_zero()); },
     |cpu, instr| { cpu.set_reg(instr.rt(), cpu.regs[instr.rs()] | instr.imm_zero()); },
     |cpu, instr| { unimplemented!("XORI") },
     |cpu, instr| { cpu.set_reg(instr.rt(), instr.imm_zero() << 16); },
@@ -116,8 +116,16 @@ pub static CPU_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
     |cpu, instr| { unimplemented!("LHU") },
     |cpu, instr| { unimplemented!("LWR") },
     op_illegal,
-    |cpu, instr| { unimplemented!("SB") },
-    |cpu, instr| { unimplemented!("SH") },
+    |cpu, instr| {
+        let address = cpu.regs[instr.rs()] + instr.imm_signed();
+        cpu.store8(address, cpu.regs[instr.rt()] as u8);
+    },
+    |cpu, instr| { 
+        let address = cpu.regs[instr.rs()] + instr.imm_signed();
+        // TODO: Handle misalignments
+
+        cpu.store16(address, cpu.regs[instr.rt()] as u16);
+    },
     |cpu, instr| { unimplemented!("SWL") },
     |cpu, instr| { 
         let address = cpu.regs[instr.rs()] + instr.imm_signed();
@@ -161,7 +169,7 @@ static CPU_SPECIAL_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
     op_illegal,
     |cpu, instr| { unimplemented!("SRLV") },
     |cpu, instr| { unimplemented!("SRAV") },
-    |cpu, instr| { unimplemented!("JR") },
+    |cpu, instr| { jump(cpu, cpu.regs[instr.rs()]); },
     |cpu, instr| { unimplemented!("JALR") },
     op_illegal,
     op_illegal,
@@ -224,9 +232,20 @@ fn op_illegal(cpu: &mut Cpu, instr: Instruction) {
     std::process::exit(1);
 }
 
+fn jump(cpu: &mut Cpu, address: u32) {
+    cpu.branch_delay = true;
+    cpu.branch_taken = true;
+
+    let jump_address = address;
+    info!("[CPU] Performing jump to address: 0x{:08X}", jump_address);
+    cpu.program_counter_predictor = jump_address;
+}
+
 fn branch(cpu: &mut Cpu, instr: Instruction) {
     // TODO: Verify if its correct
     let branch_address = cpu.program_counter.wrapping_add(instr.imm_signed() << 2);
-    trace!("CPU: Performing branch to address: 0x{:08X}", branch_address);
+    trace!("[CPU] Performing branch to address: 0x{:08X}", branch_address);
+    
+    cpu.branch_taken = true;
     cpu.program_counter_predictor = branch_address;
 }
