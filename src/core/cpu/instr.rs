@@ -56,7 +56,12 @@ pub static CPU_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
 
         jump(cpu, (cpu.program_counter & 0xF0000000) | (instr.target() << 2));
     },
-    |cpu, instr| { unimplemented!("BEQ") },
+    |cpu, instr| { 
+        cpu.branch_delay = true;
+        if cpu.regs[instr.rs()] == cpu.regs[instr.rt()] {
+            branch(cpu, instr);
+        } 
+    },
     |cpu, instr| { 
         cpu.branch_delay = true;
         if cpu.regs[instr.rs()] != cpu.regs[instr.rt()] {
@@ -66,6 +71,8 @@ pub static CPU_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
     |cpu, instr| { unimplemented!("BLEZ") },
     |cpu, instr| { unimplemented!("BGTZ") },
     |cpu, instr| { 
+        trace!("[ADDI] rs: 0x{:08X}, imm: 0x{:08X}", cpu.regs[instr.rs()], instr.imm_signed());
+
         let rs = cpu.regs[instr.rs()];
         match rs.checked_add(instr.imm_signed()) {
             Some(value) => cpu.set_reg(instr.rt(), value),
@@ -81,7 +88,13 @@ pub static CPU_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
     |cpu, instr| { cpu.set_reg(instr.rt(), instr.imm_zero() << 16); },
     |cpu, instr| { 
         match instr.rs() {
-            0 => unimplemented!("MFC0"),
+            0 => {
+                let value = cpu.cop0.load(instr.rd());
+                match value {
+                    Some(value) => cpu.load_delay_slot(instr.rt(), value),
+                    None => todo!("Exception")
+                }
+            }
             4 => cpu.cop0.store(instr.rd(), cpu.regs[instr.rt()]),
             16 => unimplemented!("RFE"),
             _ => unreachable!()
@@ -102,11 +115,16 @@ pub static CPU_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
     op_illegal,
     op_illegal,
     op_illegal,
-    |cpu, instr| { unimplemented!("LB") },
+    |cpu, instr| {
+        let address = cpu.regs[instr.rs()].wrapping_add(instr.imm_signed());
+        let value = cpu.load8(address) as i8;
+
+        cpu.load_delay_slot(instr.rt(), value as u32);
+    },
     |cpu, instr| { unimplemented!("LH") },
     |cpu, instr| { unimplemented!("LWL") },
     |cpu, instr| { 
-        let address = cpu.regs[instr.rs()] + instr.imm_signed();
+        let address = cpu.regs[instr.rs()].wrapping_add(instr.imm_signed());
         // TODO: Handle misalignments
         let value = cpu.load32(address);
 
@@ -117,18 +135,18 @@ pub static CPU_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
     |cpu, instr| { unimplemented!("LWR") },
     op_illegal,
     |cpu, instr| {
-        let address = cpu.regs[instr.rs()] + instr.imm_signed();
+        let address = cpu.regs[instr.rs()].wrapping_add(instr.imm_signed());
         cpu.store8(address, cpu.regs[instr.rt()] as u8);
     },
     |cpu, instr| { 
-        let address = cpu.regs[instr.rs()] + instr.imm_signed();
+        let address = cpu.regs[instr.rs()].wrapping_add(instr.imm_signed());
         // TODO: Handle misalignments
 
         cpu.store16(address, cpu.regs[instr.rt()] as u16);
     },
     |cpu, instr| { unimplemented!("SWL") },
     |cpu, instr| { 
-        let address = cpu.regs[instr.rs()] + instr.imm_signed();
+        let address = cpu.regs[instr.rs()].wrapping_add(instr.imm_signed());
         // TODO: Handle misalignments
 
         cpu.store32(address, cpu.regs[instr.rt()]);
@@ -197,7 +215,7 @@ static CPU_SPECIAL_INSTRUCTIONS: [fn(&mut Cpu, Instruction); 0x40] = [
     |cpu, instr| { cpu.set_reg(instr.rd(), cpu.regs[instr.rs()].wrapping_add(cpu.regs[instr.rt()])); },
     |cpu, instr| { unimplemented!("SUB") },
     |cpu, instr| { unimplemented!("SUBU") },
-    |cpu, instr| { unimplemented!("AND") },
+    |cpu, instr| { cpu.set_reg(instr.rd(), cpu.regs[instr.rs()] & cpu.regs[instr.rt()]); },
     |cpu, instr| { cpu.set_reg(instr.rd(), cpu.regs[instr.rs()] | cpu.regs[instr.rt()]); },
     |cpu, instr| { unimplemented!("XOR") },
     |cpu, instr| { unimplemented!("NOR") },

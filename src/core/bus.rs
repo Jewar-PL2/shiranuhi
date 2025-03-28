@@ -5,6 +5,7 @@ use super::{
 use spdlog::prelude::*;
 
 const RAM_RANGE: Range = Range(0x00000000, 2 * 1024 * 1024);
+const EXPANSION_1_RANGE: Range = Range(0x1F000000, 512 * 1024); // 512KB i think
 const MEMORY_CONTROL_RANGE: Range = Range(0x1F801000, 36);
 const RAM_SIZE_RANGE: Range = Range(0x1F801060, 4);
 const SPU_RANGE: Range = Range(0x1F801C00, 640);
@@ -49,6 +50,19 @@ impl Bus {
 
     pub fn load8(&self, address: u32) -> u8 {        
         let address = get_masked_address(address);
+
+        if let Some(offset) = RAM_RANGE.contains(address) {
+            return self.ram.load8(offset);
+        }
+
+        if let Some(_offset) = EXPANSION_1_RANGE.contains(address) {
+            warn!("[EXP1] Unhandled load8 at [0x{:08X}]", address);
+            return 0xFF;
+        }
+
+        if let Some(offset) = BIOS_RANGE.contains(address) {
+            return self.bios.load8(offset);
+        }
 
         panic!("INVALID LOAD8 ADDRESS: 0x{:08X}", address);
     }
